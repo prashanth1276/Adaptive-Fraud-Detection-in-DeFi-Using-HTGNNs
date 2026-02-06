@@ -1,0 +1,143 @@
+# Dataset: bigquery-public-data -> https://console.cloud.google.com/bigquery
+
+# This is for Jan Month Data.
+
+WITH recent_transactions AS (
+  SELECT
+    tx.hash AS tx_hash,
+    tx.block_timestamp,
+    tx.from_address,
+    tx.to_address,
+    tx.value,
+    tx.gas,
+    tx.gas_price,
+    tx.block_number,
+    tx.transaction_index,
+    EXTRACT(DAY FROM tx.block_timestamp) AS tx_day,
+    EXTRACT(MONTH FROM tx.block_timestamp) AS tx_month,
+    EXTRACT(HOUR FROM tx.block_timestamp) AS tx_hour
+  FROM `bigquery-public-data.crypto_ethereum.transactions` AS tx
+  WHERE tx.block_timestamp BETWEEN TIMESTAMP("2023-01-01") AND TIMESTAMP("2023-01-30")
+  LIMIT 300000
+),
+
+token_transfers AS (
+  SELECT
+    tt.transaction_hash,
+    tt.from_address AS token_from,
+    tt.to_address AS token_to,
+    tt.token_address,
+    tt.value AS token_value,
+    tt.block_timestamp AS token_time
+  FROM `bigquery-public-data.crypto_ethereum.token_transfers` AS tt
+  WHERE tt.block_timestamp BETWEEN TIMESTAMP("2023-01-01") AND TIMESTAMP("2023-01-30")
+),
+
+contract_metadata AS (
+  SELECT
+    c.address AS contract_address,
+    c.is_erc20,
+    c.is_erc721,
+    ARRAY_LENGTH(c.function_sighashes) AS function_count,
+    c.function_sighashes[SAFE_OFFSET(0)] AS sample_function,  -- Corrected this line
+    LENGTH(c.bytecode) AS bytecode_size
+  FROM `bigquery-public-data.crypto_ethereum.contracts` AS c
+)
+
+SELECT
+  rt.tx_hash,
+  rt.block_timestamp,
+  rt.from_address,
+  rt.to_address,
+  rt.value,
+  rt.gas,
+  rt.gas_price,
+  rt.block_number,
+  rt.transaction_index,
+  rt.tx_day,
+  rt.tx_month,
+  rt.tx_hour,
+  tt.token_address,
+  tt.token_value,
+  cm.is_erc20,
+  cm.is_erc721,
+  cm.function_count,
+  cm.bytecode_size
+FROM recent_transactions AS rt
+LEFT JOIN token_transfers AS tt
+  ON rt.tx_hash = tt.transaction_hash
+LEFT JOIN contract_metadata AS cm
+  ON rt.to_address = cm.contract_address
+ORDER BY rt.block_timestamp
+
+
+# This is for Feb Month Data.
+
+WITH recent_transactions AS (
+  SELECT
+    tx.hash AS tx_hash,
+    tx.block_timestamp,
+    tx.from_address,
+    tx.to_address,
+    tx.value,
+    tx.gas,
+    tx.gas_price,
+    tx.block_number,
+    tx.transaction_index,
+    EXTRACT(DAY FROM tx.block_timestamp) AS tx_day,
+    EXTRACT(MONTH FROM tx.block_timestamp) AS tx_month,
+    EXTRACT(HOUR FROM tx.block_timestamp) AS tx_hour
+  FROM `bigquery-public-data.crypto_ethereum.transactions` AS tx
+  WHERE tx.block_timestamp BETWEEN TIMESTAMP("2023-02-01") AND TIMESTAMP("2023-02-28")
+  LIMIT 100000  -- Over-fetch to account for filtering after joins
+),
+
+token_transfers AS (
+  SELECT
+    tt.transaction_hash,
+    tt.from_address AS token_from,
+    tt.to_address AS token_to,
+    tt.token_address,
+    tt.value AS token_value,
+    tt.block_timestamp AS token_time
+  FROM `bigquery-public-data.crypto_ethereum.token_transfers` AS tt
+  WHERE tt.block_timestamp BETWEEN TIMESTAMP("2023-02-01") AND TIMESTAMP("2023-02-28")
+),
+
+contract_metadata AS (
+  SELECT
+    c.address AS contract_address,
+    c.is_erc20,
+    c.is_erc721,
+    ARRAY_LENGTH(c.function_sighashes) AS function_count,
+    c.function_sighashes[SAFE_OFFSET(0)] AS sample_function,
+    LENGTH(c.bytecode) AS bytecode_size
+  FROM `bigquery-public-data.crypto_ethereum.contracts` AS c
+)
+
+SELECT
+  rt.tx_hash,
+  rt.block_timestamp,
+  rt.from_address,
+  rt.to_address,
+  rt.value,
+  rt.gas,
+  rt.gas_price,
+  rt.block_number,
+  rt.transaction_index,
+  rt.tx_day,
+  rt.tx_month,
+  rt.tx_hour,
+  tt.token_address,
+  tt.token_value,
+  cm.is_erc20,
+  cm.is_erc721,
+  cm.function_count,
+  cm.bytecode_size
+FROM recent_transactions AS rt
+LEFT JOIN token_transfers AS tt
+  ON rt.tx_hash = tt.transaction_hash
+LEFT JOIN contract_metadata AS cm
+  ON rt.to_address = cm.contract_address
+ORDER BY rt.block_timestamp
+LIMIT 50000  -- ✅ Final limit: 50K rows

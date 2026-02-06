@@ -1,0 +1,22 @@
+# Core
+pandas==2.2.2
+numpy==1.26.4
+scikit-learn==1.5.1
+
+# Visualization / UI
+matplotlib==3.9.0
+networkx==3.3
+streamlit==1.36.0
+
+# Ethereum / Web
+requests==2.32.3
+web3==6.20.0
+
+# Utilities
+decorator==5.1.1
+pygments==2.18.0
+
+# ML stack (PINNED — DO NOT CHANGE)
+dgl==2.0.0
+
+# using this torch: pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cpu

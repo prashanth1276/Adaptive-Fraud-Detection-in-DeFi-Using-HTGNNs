@@ -1,1 +1,1 @@
-# Adaptive-Fraud-Detection-in-DeFi-Using-HTGNNs
+# Adaptive-Fraud-Detection-in-DeFi-Using-HTGNN

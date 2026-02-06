@@ -44,7 +44,7 @@ def train():
     criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     optimizer = optim.Adam(model.parameters(), lr=0.0005, weight_decay=1e-4)
 
-    for epoch in range(1, 31):
+    for epoch in range(1, 11):
         model.train()
         optimizer.zero_grad()
 
@@ -59,7 +59,7 @@ def train():
         model.eval()
         with torch.no_grad():
             probs = torch.sigmoid(logits[test_mask].squeeze())
-            preds = (probs > 0.5).long()
+            preds = (probs > 0.2).long()
 
             metrics = compute_metrics(
                 labels[test_mask],

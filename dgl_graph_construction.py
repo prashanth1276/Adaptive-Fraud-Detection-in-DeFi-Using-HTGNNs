@@ -2,6 +2,7 @@ import pandas as pd
 import dgl
 import torch
 import numpy as np
+from sklearn.preprocessing import StandardScaler
 
 # -----------------------------
 # 1. Load CSVs
@@ -46,29 +47,27 @@ g = dgl.heterograph(edge_dict, num_nodes_dict={'node': len(all_nodes)})
 # 5. Node features
 # -----------------------------
 feature_cols = [
-    'tx_count',
-    'incoming_value',
-    'outgoing_value',
-    'avg_gas_used',
-    'unique_peers',
-    'contract_flag',
-    'token_flag',
-    'bytecode_size'
+    'tx_count', 'incoming_value', 'outgoing_value',
+    'avg_gas_used', 'unique_peers', 'contract_flag',
+    'token_flag', 'bytecode_size'
 ]
 
 node_feat_df = nodes_df[feature_cols].copy()
 
-# Log-scale heavy-tailed features
+# 1. Log-scale heavy-tailed features
 for col in ['tx_count', 'incoming_value', 'outgoing_value',
             'avg_gas_used', 'unique_peers', 'bytecode_size']:
     node_feat_df[col] = np.log1p(node_feat_df[col])
 
-node_features = torch.tensor(
-    node_feat_df.values,
+# 2. 🔥 NEW: Standardize to mean 0 and unit variance
+# This prevents the 29k-edge node from breaking the GAT attention
+scaler = StandardScaler()
+node_feat_scaled = scaler.fit_transform(node_feat_df)
+
+g.nodes['node'].data['feat'] = torch.tensor(
+    node_feat_scaled,
     dtype=torch.float32
 )
-
-g.nodes['node'].data['feat'] = node_features
 
 # -----------------------------
 # 6. Node labels
@@ -100,40 +99,23 @@ g.nodes['node'].data['timestamp'] = torch.tensor(
 for etype in g.etypes:
     et_df = edges_df[edges_df['edge_type'] == etype].copy()
 
+    # Fill NaNs with 0
     et_df = et_df.fillna({
-        'value': 0,
-        'token_value': 0,
-        'gas': 0,
-        'gas_price': 0,
-        'tx_frequency': 0,
-        'timestamp': 0
+        'value': 0, 'token_value': 0, 'gas': 0, 
+        'gas_price': 0, 'tx_frequency': 0, 'timestamp': 0
     })
 
-    # 🔥 CRITICAL: log-normalization
-    et_df['value'] = np.log1p(et_df['value'])
-    et_df['token_value'] = np.log1p(et_df['token_value'])
-    et_df['gas'] = np.log1p(et_df['gas'])
-    et_df['gas_price'] = np.log1p(et_df['gas_price'])
-    et_df['tx_frequency'] = np.log1p(et_df['tx_frequency'])
-
+    # Ensure timestamp is a long integer (Unix seconds)
+    # The .values.astype('int64') ensures Windows doesn't cap it at int32
     g.edges[etype].data['timestamp'] = torch.tensor(
-        et_df['timestamp'].values, dtype=torch.long
+        et_df['timestamp'].values.astype('int64'), dtype=torch.long
     )
-    g.edges[etype].data['value'] = torch.tensor(
-        et_df['value'].values, dtype=torch.float32
-    )
-    g.edges[etype].data['token_value'] = torch.tensor(
-        et_df['token_value'].values, dtype=torch.float32
-    )
-    g.edges[etype].data['gas'] = torch.tensor(
-        et_df['gas'].values, dtype=torch.float32
-    )
-    g.edges[etype].data['gas_price'] = torch.tensor(
-        et_df['gas_price'].values, dtype=torch.float32
-    )
-    g.edges[etype].data['tx_frequency'] = torch.tensor(
-        et_df['tx_frequency'].values, dtype=torch.float32
-    )
+
+    # Log-normalize edge weights
+    for col in ['value', 'token_value', 'gas', 'gas_price', 'tx_frequency']:
+        g.edges[etype].data[col] = torch.tensor(
+            np.log1p(et_df[col].values), dtype=torch.float32
+        )
 
 # -----------------------------
 # 8. Sanity checks

@@ -1,0 +1,35 @@
+sequenceDiagram
+    autonumber
+    participant U as User / Fraudster
+    participant BC as Ethereum Blockchain
+    participant O as Node Observer (Kafka)
+    participant KG as Knowledge Graph (Neo4j)
+    participant AI as HTGNN Engine (Model)
+    participant DB as Streamlit Dashboard
+    participant H as Admin/Human
+
+    Note over U, BC: 1. Data Ingestion
+    U->>BC: Initiates Transaction
+    BC-->>O: Real-time Event Stream
+    O->>KG: Add New Transaction Edge
+    
+    Note over O, AI: 2. Inference & Scoring
+    O->>KG: Fetch Local Subgraph
+    KG-->>AI: Provide Temporal/Relational Data
+    AI->>AI: Time Encoding (dt) & 8-Head Attention
+    AI->>AI: Generate Anomaly Score
+    
+    Note over AI, DB: 3. Alerting & XAI
+    alt Score > 0.72
+        AI->>DB: Trigger Fraud Alert
+        DB->>DB: Render PyVis Subgraph (Explainability)
+        
+        Note over DB, H: 4. THE ADAPTIVE LOOP
+        H->>DB: Clicks "Confirm Fraud" Button
+        DB->>KG: Label Node as 'Confirmed_Phishing'
+        DB->>AI: Trigger Incremental Retraining
+        AI->>AI: Fine-tune Weights on New Pattern
+        Note right of AI: Model Successfully Adapted!
+    else Score <= 0.72
+        AI->>DB: Mark as Legitimate
+    end

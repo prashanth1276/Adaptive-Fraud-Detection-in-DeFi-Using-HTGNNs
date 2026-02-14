@@ -18,7 +18,11 @@ class TimeEncoding(nn.Module):
 
     def forward(self, delta_t):
         # delta_t: seconds → days
-        delta_t = delta_t.float() / (60 * 60 * 24)
+        delta_t = delta_t.float() / 3600.0
+
+        # Handle potential negative delta_t (if any timestamps are messy)
+        delta_t = torch.abs(delta_t)
+        
         delta_t = delta_t.unsqueeze(-1)
 
         angles = delta_t * self.freq

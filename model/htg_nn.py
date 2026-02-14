@@ -30,14 +30,16 @@ class HTGNN(nn.Module):
             {
                 etype: dglnn.GATConv(
                     input_dim + time_dim,
-                    hidden_dim,
-                    num_heads=1,
+                    hidden_dim // 8,  # Divide by num_heads so total output is hidden_dim
+                    num_heads=8,
                     allow_zero_in_degree=True
                 )
                 for etype in edge_types
             },
-            aggregate="sum"
+            aggregate="mean"
         )
+
+        self.bn = nn.BatchNorm1d(hidden_dim)
 
         self.classifier = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim),
@@ -78,7 +80,10 @@ class HTGNN(nn.Module):
         x = torch.cat([x, temporal_feature], dim=1)
 
         h = self.convs(g, {'node': x})
-        h = h['node'].squeeze(1)
+        # Flatten the heads: (N, 8, H/8) -> (N, H)
+        h = h['node'].view(h['node'].shape[0], -1)
+
+        h = self.bn(h)
 
         logits = self.classifier(h)
         return logits

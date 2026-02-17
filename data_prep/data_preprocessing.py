@@ -34,7 +34,6 @@ df_cleaned['is_erc20'] = normalize_erc_column(df['is_erc20'])
 df_cleaned['is_erc721'] = normalize_erc_column(df['is_erc721'])
 
 
-
 # Standardize address format (important for graph nodes)
 df_cleaned['from_address'] = df_cleaned['from_address'].str.lower()
 df_cleaned['to_address'] = df_cleaned['to_address'].str.lower()

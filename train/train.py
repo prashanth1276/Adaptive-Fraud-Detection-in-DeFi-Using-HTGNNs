@@ -5,7 +5,13 @@ import dgl
 import pandas as pd
 import numpy as np
 import os
-
+import json
+import random
+import datetime
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import precision_recall_curve
+import joblib
 from model.htg_nn import HTGNN
 from utils.metrics import (
     compute_metrics,
@@ -14,27 +20,112 @@ from utils.metrics import (
     plot_precision_recall_curve
 ) 
 
-
 def load_graph():
-    import dgl_graph_construction  # your existing script
-    return dgl_graph_construction.g
+    # Load the pre-processed binary graph we saved earlier
+    graphs, _ = dgl.load_graphs("DataSet/graph.bin")
+    return graphs[0]
 
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=0.95, gamma=1.5):
+        super(FocalLoss, self).__init__()
+        self.alpha = alpha  # Higher alpha gives more weight to the fraud class
+        self.gamma = gamma  # Higher gamma makes the model try harder on misclassified nodes
+
+    def forward(self, inputs, targets):
+        inputs = inputs.view(-1)
+        targets = targets.view(-1)
+        BCE_loss = nn.functional.binary_cross_entropy_with_logits(
+            inputs, targets, reduction='none'
+        )
+
+        pt = torch.exp(-BCE_loss)
+
+        alpha_t = self.alpha * targets + (1 - self.alpha) * (1 - targets)
+
+        F_loss = alpha_t * (1 - pt)**self.gamma * BCE_loss
+        return F_loss.mean()
+
+def ts_to_date(ts):
+    return datetime.datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d')
 
 def train():
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    seed = 42
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+    dgl.seed(seed)
+
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    device = torch.device("cpu")
 
     g = load_graph().to(device)
+
+    if not hasattr(g, 'graph_data'):
+        g.graph_data = {}
 
     labels = g.nodes['node'].data['label']
     num_classes = 1
 
-    timestamps = g.nodes['node'].data['timestamp']  # you must add this
-    val_threshold = torch.quantile(timestamps.float(), 0.6)   # 60% for training
-    test_threshold = torch.quantile(timestamps.float(), 0.8)  # 20% for validation, 20% for test
-
-    train_mask = timestamps <= val_threshold
-    val_mask = (timestamps > val_threshold) & (timestamps <= test_threshold)
+    timestamps = g.nodes['node'].data['timestamp'].float()  # you must add this
+    g.graph_data['max_timestamp'] = timestamps.max()
+    
+    # 1️⃣ Temporal Test Split (last 15% time)
+    test_threshold = torch.quantile(timestamps, 0.85)
     test_mask = timestamps > test_threshold
+
+    # 2️⃣ Remaining data for Train + Val
+    remaining_mask = ~test_mask
+
+    remaining_indices = torch.where(remaining_mask)[0].cpu().numpy()
+    remaining_labels = labels[remaining_mask].cpu().numpy()
+
+    # 3️⃣ Stratified Train/Val split on remaining data
+    train_idx, val_idx = train_test_split(
+        remaining_indices,
+        test_size=0.15,
+        stratify=remaining_labels,
+        random_state=42
+    )
+
+    train_mask = torch.zeros_like(labels, dtype=torch.bool)
+    val_mask = torch.zeros_like(labels, dtype=torch.bool)
+
+    train_mask[train_idx] = True
+    val_mask[val_idx] = True
+
+    print("Train nodes:", train_mask.sum().item())
+    print("Val nodes:", val_mask.sum().item())
+    print("Test nodes:", test_mask.sum().item())
+
+    print("Train fraud count:", labels[train_mask].sum().item())
+    print("Val fraud count:", labels[val_mask].sum().item())
+    print("Test fraud count:", labels[test_mask].sum().item())
+
+    feat_raw = g.nodes['node'].data['feat_raw'].cpu().numpy()
+
+    scaler = StandardScaler()
+    feat_raw[train_mask.cpu().numpy()] = scaler.fit_transform(
+        feat_raw[train_mask.cpu().numpy()]
+    )
+
+    # Transform val & test using same scaler
+    feat_raw[val_mask.cpu().numpy()] = scaler.transform(
+        feat_raw[val_mask.cpu().numpy()]
+    )
+
+    feat_raw[test_mask.cpu().numpy()] = scaler.transform(
+        feat_raw[test_mask.cpu().numpy()]
+    )
+
+    g.nodes['node'].data['feat'] = torch.tensor(
+        feat_raw,
+        dtype=torch.float32
+    ).to(device)
+
+    joblib.dump(scaler, "DataSet/scaler.pkl")
 
     model = HTGNN(
         input_dim=g.nodes['node'].data['feat'].shape[1],
@@ -44,73 +135,132 @@ def train():
         edge_types=g.etypes
     ).to(device)
 
-    pos_weight = torch.tensor(
-        [(labels == 0).sum() / (labels == 1).sum()],
-        device=device
-    )
+    # Calculate raw ratio
+    num_neg = (labels[train_mask] == 0).sum().float()
+    num_pos = (labels[train_mask] == 1).sum().float()
+    raw_ratio = num_neg / (num_pos + 1e-8)
 
-    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
-    optimizer = optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-5)
+    # Cap the weight at 100 to prevent gradients from exploding
+    # This helps the model learn patterns instead of just guessing 'Fraud'
+    #pos_weight = torch.tensor([min(raw_ratio.item(), 100.0)], device=device)
+    #print(f"Using pos_weight: {pos_weight.item():.2f} (Raw ratio was: {raw_ratio.item():.2f})")
+
+    # REMOVE pos_weight and BCEWithLogitsLoss logic
+    # ADD Focal Loss: Alpha 0.8 handles the 1:169 imbalance research-style
+    criterion = FocalLoss(alpha=0.95, gamma=1.5)
+    
+    # Lower learning rate for more stable convergence in deep graphs
+    optimizer = optim.Adam(model.parameters(), lr=0.0005, weight_decay=1e-4)
 
     # 2. Add Scheduler
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=5)
 
-    best_f1 = 0.0
+    best_score = 0.0
     final_best_threshold = 0.5
+
+    patience_counter = 0
 
     for epoch in range(1, 101):
         model.train()
         optimizer.zero_grad()
+
+        train_max_time = timestamps[train_mask].max()
+
+        if train_mask.sum() > 0:
+            g.graph_data['current_time'] = train_max_time
+        else:
+            g.graph_data['current_time'] = timestamps.max()
 
         logits = model(g)
 
         loss = criterion(logits[train_mask].view(-1), labels[train_mask].float().view(-1))
 
         loss.backward()
+        # Research best-practice: Gradient clipping to keep learning stable
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) 
         optimizer.step()
 
         # REPLACE the evaluation inside the epoch loop with this:
         model.eval()
         with torch.no_grad():
-            val_probs = torch.sigmoid(logits[val_mask].squeeze())
-            
-            # Research addition: Find the best threshold for F1-Score
-            from sklearn.metrics import precision_recall_curve
-            p, r, t = precision_recall_curve(labels[val_mask].cpu(), val_probs.cpu())
-            f1 = 2 * (p * r) / (p + r + 1e-8)
-            best_threshold = t[np.argmax(f1)] 
+            if val_mask.sum() > 0:
+                val_max_time = timestamps[val_mask].max()
+                g.graph_data['current_time'] = val_max_time
+            else:
+                g.graph_data['current_time'] = timestamps.max()
 
-            # Now evaluate on Test set using the best threshold found in Validation
-            test_probs = torch.sigmoid(logits[test_mask].squeeze())
-            test_preds = (test_probs > best_threshold).long()
-            metrics = compute_metrics(labels[test_mask], test_preds, test_probs)
-            
-            # Save Best Model
-            current_f1 = metrics['f1']
-            scheduler.step(current_f1)
+            val_logits = model(g)
+            val_probs = torch.sigmoid(val_logits[val_mask]).view(-1)
+
+            print("Mean val prob:", val_probs.mean().item())
+            print("Max val prob:", val_probs.max().item())
+
+            if val_mask.sum() == 0:
+                print("⚠️ No validation samples in this split. Skipping validation.")
+                continue
         
-            if current_f1 > best_f1:
-                best_f1 = current_f1
+            y_val = labels[val_mask].cpu().numpy()
+            y_prob = val_probs.cpu().numpy()
+
+            best_threshold = 0.5  # default
+
+            if len(np.unique(y_val)) > 1:
+                precision, recall, thresholds = precision_recall_curve(y_val, y_prob)
+                f1_scores = 2 * (precision * recall) / (precision + recall + 1e-8)
+                optimal_idx = np.argmax(f1_scores)
+                if optimal_idx < len(thresholds):
+                    best_threshold = thresholds[optimal_idx]
+
+            # ----- Validation Metrics (used for LR + model selection) -----
+            val_preds = (val_probs > best_threshold).long()
+            val_metrics = compute_metrics(labels[val_mask], val_preds, val_probs)
+
+            current_score = val_metrics['auprc']
+            scheduler.step(current_score)
+
+            if current_score > best_score:
+                best_score = current_score
                 final_best_threshold = best_threshold
-                torch.save(model.state_dict(), 'best_model.pth')
-                print(f"🌟 Epoch {epoch:02d}: New Best F1: {best_f1:.4f} - Model Saved")
+                checkpoint = {
+                    'model_state': model.state_dict(),
+                    'threshold': final_best_threshold,
+                    'test_cutoff': test_threshold
+                }
+                torch.save(checkpoint, 'best_model.pth')
+                print(f"🌟 Epoch {epoch:02d}: New Best Val AUPRC: {best_score:.4f} - Model Saved")
+                patience_counter = 0
+            else:
+                patience_counter += 1
+
+            if patience_counter >= 15:
+                print("⏹️ Early stopping triggered.")
+                break
 
         print(
             f"Epoch {epoch:02d} | "
             f"Loss: {loss.item():.4f} | "
-            f"Precision: {metrics['precision']:.4f} | "
-            f"Recall: {metrics['recall']:.4f} | "
-            f"F1: {metrics['f1']:.4f} | "
-            f"AUC: {metrics['roc_auc']:.4f}"
+            f"Val AUPRC: {val_metrics['auprc']:.4f} | "
+            f"Val F1: {val_metrics['f1']:.4f}"
         )
 
+
     if os.path.exists('best_model.pth'):
-        model.load_state_dict(torch.load('best_model.pth'))
+        checkpoint = torch.load('best_model.pth')
+        # Extract the actual weights from the dictionary
+        model.load_state_dict(checkpoint['model_state'])
+        # Update the threshold so your final evaluation is accurate
+        final_best_threshold = checkpoint['threshold']
+        print(f"Loaded best model with threshold: {final_best_threshold:.4f}")
     
 
     model.eval()
     with torch.no_grad():
-        logits = model(g).squeeze()
+        if test_mask.sum() > 0:
+            g.graph_data['current_time'] = timestamps[test_mask].max()
+        else:
+            g.graph_data['current_time'] = timestamps.max()
+
+        logits = model(g).view(-1)
         probs = torch.sigmoid(logits[test_mask])
         
         # Use the best_threshold calculated during the final epoch
@@ -124,6 +274,26 @@ def train():
         plot_roc_curve(y_true, y_probs)
         plot_precision_recall_curve(y_true, y_probs)
         print(f"✅ Final Evaluation complete using Optimal Threshold: {final_best_threshold:.4f}")
+
+
+    print("Val cutoff:", ts_to_date(test_threshold.item()))
+    experiment_config = {
+        "seed": seed,
+        "hidden_dim": 128,
+        "time_dim": 32,
+        "learning_rate": 0.0005,
+        "weight_decay": 1e-4,
+        "alpha": 0.95,
+        "gamma": 1.5,
+        "test_cutoff": float(test_threshold.item()),
+        "train_size": int(train_mask.sum().item()),
+        "val_size": int(val_mask.sum().item()),
+        "test_size": int(test_mask.sum().item())
+    }
+
+    with open("DataSet/experiment_config.json", "w") as f:
+        json.dump(experiment_config, f, indent=4)
+
 
 if __name__ == "__main__":
     train()

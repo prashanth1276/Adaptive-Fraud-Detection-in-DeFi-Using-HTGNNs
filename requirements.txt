@@ -8,14 +8,17 @@ seaborn==0.13.2
 matplotlib==3.9.0
 networkx==3.3
 streamlit==1.36.0
+streamlit-agraph==0.0.45
 
 # Ethereum / Web
 requests==2.32.3
 web3==6.20.0
+neo4j==5.23.0
 
 # Utilities
 decorator==5.1.1
 pygments==2.18.0
+python-dotenv==1.0.1
 
 # ML stack (PINNED — DO NOT CHANGE)
 dgl==2.0.0

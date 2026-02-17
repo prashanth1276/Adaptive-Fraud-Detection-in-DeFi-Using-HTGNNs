@@ -8,6 +8,11 @@ class TimeEncoding(nn.Module):
     """
     def __init__(self, time_dim: int):
         super().__init__()
+
+        # Ensure even dimension
+        if time_dim % 2 != 0:
+            raise ValueError("time_dim must be even for sin/cos encoding")
+
         self.time_dim = time_dim
 
         freq = torch.exp(
@@ -18,10 +23,10 @@ class TimeEncoding(nn.Module):
 
     def forward(self, delta_t):
         # delta_t: seconds → days
-        delta_t = delta_t.float() / 3600.0
+        delta_t = delta_t.float().to(self.freq.device)
 
         # Handle potential negative delta_t (if any timestamps are messy)
-        delta_t = torch.abs(delta_t)
+        #delta_t = torch.abs(delta_t)
         
         delta_t = delta_t.unsqueeze(-1)
 

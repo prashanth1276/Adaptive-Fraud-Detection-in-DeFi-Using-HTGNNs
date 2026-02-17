@@ -1,10 +1,10 @@
 import pandas as pd
 
-#df = pd.read_csv("Dataset/graph_nodes_labeled.csv")
+#df = pd.read_csv("DataSet/graph_nodes_labeled.csv")
 
-#df = pd.read_csv("Dataset/graph_edges.csv", dtype={'token_address': str, 'src': str, 'dst': str}, low_memory=False)
+# df = pd.read_csv("DataSet/graph_edges.csv", low_memory=False)#, dtype={'token_address': str, 'src': str, 'dst': str}, low_memory=False)
 
-df = pd.read_csv("Dataset/Ethereum_Fraud_Dataset.csv")
+df = pd.read_csv("DataSet/Ethereum_Fraud_Dataset.csv")
 print(df.head())
 print(df.info())
 # Count the number of occurrences for each Flag value

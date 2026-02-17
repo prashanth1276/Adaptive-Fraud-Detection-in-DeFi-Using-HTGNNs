@@ -1,0 +1,100 @@
+Wallet Node Creation:
+LOAD CSV WITH HEADERS FROM 'file:///graph_nodes_labeled.csv' AS row
+CREATE (:Wallet {
+    address: row.node,
+    type: row.node_type,
+    tx_count: toFloat(row.tx_count),
+    incoming: toFloat(row.incoming_value),
+    outgoing: toFloat(row.outgoing_value),
+    label: toInteger(row.flag)
+});
+
+
+Handling Huge Edges:
+CREATE INDEX wallet_address_idx FOR (n:Wallet) ON (n.address);
+
+LOAD CSV WITH HEADERS FROM 'file:///graph_edges.csv' AS row
+CALL {
+  WITH row
+  MATCH (source:Wallet {address: row.src})
+  MATCH (target:Wallet {address: row.dst})
+  CREATE (source)-[:TRANSACTED {
+      type: row.edge_type,
+      timestamp: toInteger(row.timestamp),
+      value: toFloat(row.value)
+  }]->(target)
+} IN TRANSACTIONS OF 1000 ROWS;
+
+
+
+Creating Contract Nodes:
+MATCH (n:Wallet)
+WHERE n.type = 'contract'
+SET n:Contract;
+
+LOAD CSV WITH HEADERS FROM 'file:///graph_nodes_labeled.csv' AS row
+WITH row WHERE row.node_type = 'contract'
+MATCH (c:Contract {address: row.node})
+SET c.bytecode_size = toFloat(row.bytecode_size),
+    c.is_token = toInteger(row.token_flag);
+
+
+CREATE INDEX contract_address_idx IF NOT EXISTS FOR (c:Contract) ON (c.address);
+CREATE INDEX token_address_idx IF NOT EXISTS FOR (t:Token) ON (t.address);
+
+
+Creating Token Nodes:
+MATCH (n:Wallet)
+WHERE n.type = 'token'
+SET n:Token;
+
+LOAD CSV WITH HEADERS FROM 'file:///graph_edges.csv' AS row
+CALL {
+  WITH row
+  MATCH (source:Wallet {address: row.src})
+  MATCH (target:Wallet {address: row.dst})
+  CREATE (source)-[:TRANSACTED {
+      type: row.edge_type,
+      timestamp: toInteger(row.timestamp),
+      value: toFloat(row.value),
+      gas: toInteger(row.gas)
+  }]->(target)
+} IN TRANSACTIONS OF 50000 ROWS;
+
+
+MATCH (a:Wallet)-[r:TRANSACTED]->(b:Wallet)
+WITH a, b, r.timestamp AS ts, collect(r) AS nodes
+WHERE size(nodes) > 1
+CALL {
+  WITH nodes
+  UNWIND tail(nodes) AS duplicate
+  DELETE duplicate
+} IN TRANSACTIONS OF 30000 ROWS;
+
+
+MATCH (n)
+WITH labels(n) AS nodeLabels, n
+UNWIND nodeLabels AS label
+RETURN label AS EntityType, count(n) AS TotalCount
+UNION
+MATCH ()-[r]->()
+RETURN type(r) AS EntityType, count(r) AS TotalCount;
+
+// Adding features to Contract nodes
+LOAD CSV WITH HEADERS FROM 'file:///graph_nodes_labeled.csv' AS row
+WITH row WHERE row.node_type = 'contract'
+MATCH (c:Contract {address: row.node})
+SET c.bytecode_size = toFloat(row.bytecode_size);
+
+// Adding features to Token nodes
+LOAD CSV WITH HEADERS FROM 'file:///graph_nodes_labeled.csv' AS row
+WITH row WHERE row.node_type = 'token'
+MATCH (t:Token {address: row.node})
+SET t.is_token = 1;
+
+
+// Set avg_gas_used and unique_peers for existing wallets
+LOAD CSV WITH HEADERS FROM 'file:///graph_nodes_labeled.csv' AS row
+MATCH (w:Wallet {address: row.node})
+SET w.avg_gas_used = toFloat(row.avg_gas_used),
+    w.unique_peers = toInteger(row.unique_peers);

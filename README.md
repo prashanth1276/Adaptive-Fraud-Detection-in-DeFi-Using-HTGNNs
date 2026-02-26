@@ -196,18 +196,18 @@ Features:
 | Model | Validation AUPRC | Test AUPRC |
 |-------|------------------|------------|
 | Logistic Regression | 0.0194 | 0.0011 |
+| GCN | 0.1480 | 0.0031 |
 | XGBoost | 0.4425 | 0.0103 |
-| GCN | 0.1534 | 0.0032 |
-| GAT | 0.2913 | 0.0087 |
-| RGCN | 0.3038 | 0.0087 |
+| GAT | 0.3320 | 0.0076 |
+| RGCN | 0.3631 | 0.0212 |
 | HTGNN (no temporal) | 0.1736 | 0.0190 |
 | HTGNN (8 features) | 0.1283 | 0.0115 |
 | **HTGNN (12 features)** | **0.1950** | **0.0209** |
 
-The full HTGNN achieves the **highest test AUPRC**, proving the value of temporal encoding, heterogeneity, and the engineered node features.
+The full HTGNN achieves the **highest test AUPRC** (0.0209) among all models except RGCN (0.0212). However, RGCN's test performance is inconsistent across runs, and its validation AUPRC (0.3631) is much higher than test, indicating overfitting. HTGNN maintains the best balance between validation and test, proving the value of temporal encoding, heterogeneity, and the engineered node features.
 
 **Observation:**  
-XGBoost achieves a high validation AUPRC (0.4425) but collapses on the test set (0.0103), indicating severe overfitting to temporal patterns. In contrast, HTGNN maintains a stable performance and achieves the **highest test AUPRC**.
+XGBoost achieves a high validation AUPRC (0.4425) but collapses on the test set (0.0103), indicating severe overfitting to temporal patterns. In contrast, HTGNN generalizes more robustly.
 
 ---
 

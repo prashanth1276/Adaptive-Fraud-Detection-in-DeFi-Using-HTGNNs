@@ -1,3 +1,19 @@
+# ============================================================
+# requirements.txt — Python Dependency Manifest
+#
+# Declares all runtime and development dependencies for the
+# Adaptive DeFi Fraud Detection system. Versions are pinned
+# to ensure full reproducibility of the training, evaluation,
+# and inference environments. Dependencies are grouped by
+# functional category for clarity.
+#
+# INSTALLATION NOTE:
+# PyTorch must be installed separately using the CPU wheel
+# index before installing the remaining dependencies:
+#   pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 \
+#       --index-url https://download.pytorch.org/whl/cpu
+# ============================================================
+
 # --- INSTALLATION NOTE ---
 # To install the CPU version of Torch (required for this project), run:
 # pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cpu

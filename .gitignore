@@ -1,8 +1,19 @@
+# ============================================================
+# .gitignore — Repository Exclusion Manifest
+#
+# Specifies files and directories that should not be tracked
+# by Git version control. Excludes runtime artifacts, large
+# binary datasets, trained model checkpoints, secrets, editor
+# configuration files, and generated cache directories that
+# are either environment-specific, too large for version
+# control, or reproducible from source.
+# ============================================================
+
 venv/
 __pycache__
 
 DataSet
-results
+
 
 # Logs
 logs
@@ -34,10 +45,13 @@ dist-ssr
 
 # Models
 adapted_model.pth
+ablation_no_temporal_best.pth
+ablation_8features_best.pth
 best_model.pth
 
 # txt files
 CleanCode.txt
+sequence_diagram_code.txt
 
 # Cache of Ruff
 .ruff_cache

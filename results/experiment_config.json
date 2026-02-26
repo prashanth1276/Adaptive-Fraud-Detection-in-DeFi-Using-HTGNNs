@@ -1,0 +1,13 @@
+{
+    "seed": 42,
+    "hidden_dim": 128,
+    "time_dim": 32,
+    "learning_rate": 0.0005,
+    "weight_decay": 0.0001,
+    "alpha": 0.95,
+    "gamma": 1.5,
+    "test_cutoff": 1674680064.0,
+    "train_size": 180862,
+    "val_size": 31917,
+    "test_size": 37492
+}

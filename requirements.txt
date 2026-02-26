@@ -1,26 +1,38 @@
-# Core
+# --- INSTALLATION NOTE ---
+# To install the CPU version of Torch (required for this project), run:
+# pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cpu
+# -------------------------
+
+# Core Data Science
 pandas==2.2.2
 numpy==1.26.4
 scikit-learn==1.5.1
+joblib==1.4.2
+packaging==24.1
+
+# Deep Learning (Pinned)
+dgl==2.0.0
+
+# Graph & Visualization
+networkx==3.3
+matplotlib==3.9.0
 seaborn==0.13.2
 
-# Visualization / UI
-matplotlib==3.9.0
-networkx==3.3
+# UI / Dashboard
 streamlit==1.36.0
 streamlit-agraph==0.0.45
 
-# Ethereum / Web
-requests==2.32.3
-web3==6.20.0
+# Database & Blockchain
 neo4j==5.23.0
+web3==6.20.0
+requests==2.32.3
 
 # Utilities
+python-dotenv==1.0.1
+xgboost==1.7.6
 decorator==5.1.1
 pygments==2.18.0
-python-dotenv==1.0.1
 
-# ML stack (PINNED — DO NOT CHANGE)
-dgl==2.0.0
-
-# using this torch: pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cpu
+# Development & Maintenance
+ruff
+vulture

@@ -98,3 +98,13 @@ LOAD CSV WITH HEADERS FROM 'file:///graph_nodes_labeled.csv' AS row
 MATCH (w:Wallet {address: row.node})
 SET w.avg_gas_used = toFloat(row.avg_gas_used),
     w.unique_peers = toInteger(row.unique_peers);
+
+
+
+
+LOAD CSV WITH HEADERS FROM 'file:///graph_nodes_labeled.csv' AS row
+MATCH (w:Wallet {address: row.node})
+SET w.avg_in_value = toFloat(row.avg_in_value),
+    w.avg_out_value = toFloat(row.avg_out_value),
+    w.avg_gas_in = toFloat(row.avg_gas_in),
+    w.avg_tx_freq = toFloat(row.avg_tx_freq);

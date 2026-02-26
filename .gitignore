@@ -2,6 +2,7 @@ venv/
 __pycache__
 
 DataSet
+results
 
 # Logs
 logs
@@ -31,5 +32,12 @@ dist-ssr
 *.sln
 *.sw?
 
+# Models
 adapted_model.pth
 best_model.pth
+
+# txt files
+CleanCode.txt
+
+# Cache of Ruff
+.ruff_cache

@@ -1,11 +1,14 @@
+import math
+
 import torch
 import torch.nn as nn
-import math
+
 
 class TimeEncoding(nn.Module):
     """
     Relative time encoding (Δt in days)
     """
+
     def __init__(self, time_dim: int):
         super().__init__()
 
@@ -26,8 +29,8 @@ class TimeEncoding(nn.Module):
         delta_t = delta_t.float().to(self.freq.device)
 
         # Handle potential negative delta_t (if any timestamps are messy)
-        #delta_t = torch.abs(delta_t)
-        
+        # delta_t = torch.abs(delta_t)
+
         delta_t = delta_t.unsqueeze(-1)
 
         angles = delta_t * self.freq

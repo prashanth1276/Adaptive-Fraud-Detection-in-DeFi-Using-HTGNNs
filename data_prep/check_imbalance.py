@@ -2,12 +2,12 @@ import pandas as pd
 
 # Load the file we created/used
 try:
-    df = pd.read_csv('DataSet/nodes_audit.csv')
-    label_col = 'flag'
+    df = pd.read_csv("DataSet/nodes_audit.csv")
+    label_col = "flag"
 except FileNotFoundError:
     # Fallback to the original labeled nodes if audit isn't there yet
-    df = pd.read_csv('DataSet/graph_nodes_labeled.csv')
-    label_col = 'flag'
+    df = pd.read_csv("DataSet/graph_nodes_labeled.csv")
+    label_col = "flag"
 
 # Count the values
 counts = df[label_col].value_counts()

@@ -1,35 +1,32 @@
 sequenceDiagram
     autonumber
-    participant U as User / Fraudster
-    participant BC as Ethereum Blockchain
-    participant O as Node Observer (Kafka)
+    participant H as Admin/Human
+    participant DB as Streamlit Dashboard
     participant KG as Knowledge Graph (Neo4j)
     participant AI as HTGNN Engine (Model)
-    participant DB as Streamlit Dashboard
-    participant H as Admin/Human
 
-    Note over U, BC: 1. Data Ingestion
-    U->>BC: Initiates Transaction
-    BC-->>O: Real-time Event Stream
-    O->>KG: Add New Transaction Edge
-    
-    Note over O, AI: 2. Inference & Scoring
-    O->>KG: Fetch Local Subgraph
-    KG-->>AI: Provide Temporal/Relational Data
-    AI->>AI: Time Encoding (dt) & 8-Head Attention
-    AI->>AI: Generate Anomaly Score
-    
-    Note over AI, DB: 3. Alerting & XAI
-    alt Score > 0.72
-        AI->>DB: Trigger Fraud Alert
-        DB->>DB: Render PyVis Subgraph (Explainability)
-        
-        Note over DB, H: 4. THE ADAPTIVE LOOP
-        H->>DB: Clicks "Confirm Fraud" Button
-        DB->>KG: Label Node as 'Confirmed_Phishing'
-        DB->>AI: Trigger Incremental Retraining
-        AI->>AI: Fine-tune Weights on New Pattern
-        Note right of AI: Model Successfully Adapted!
-    else Score <= 0.72
-        AI->>DB: Mark as Legitimate
+    Note over H, DB: 1. Address Analysis Request
+    H->>DB: Enter Ethereum Address
+    DB->>KG: Fetch Temporal Subgraph (≤ last activity)
+    KG-->>DB: Return Subgraph (nodes + edges)
+
+    Note over DB, AI: 2. Inference
+    DB->>AI: Forward Subgraph + Current Time
+    AI->>AI: Time Encoding (Δt) & 8-Head Attention
+    AI-->>DB: Risk Score
+
+    Note over DB, H: 3. Alert & Explainability
+    alt Risk Score > Threshold (0.5306)
+        DB->>DB: Render Subgraph with Highlighted Target
+        DB-->>H: Show HIGH RISK + Explanation Tables
+    else
+        DB-->>H: Show LOW/MEDIUM RISK
     end
+
+    Note over H, KG: 4. Adaptive Learning Loop
+    H->>DB: Click "Fine‑Tune Model" (Correct Label)
+    DB->>KG: Update Node Label
+    DB->>AI: Trigger Fine‑Tuning on Subgraph
+    AI->>AI: Low‑LR Training (15 epochs)
+    AI-->>DB: Model Weights Updated
+    DB-->>H: Confirmation + Updated Risk Score

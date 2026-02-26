@@ -213,7 +213,7 @@ XGBoost achieves a high validation AUPRC (0.4425) but collapses on the test set 
 ---
 
 ## License
-This project is licensed under the MIT License – see the LICENSE file for details.
+This project is licensed under the MIT License – see the [LICENSE](LICENSE) file for details.
 
 ---
 

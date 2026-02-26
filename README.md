@@ -89,6 +89,7 @@ A complete end‑to‑end system for detecting fraudulent accounts in Ethereum D
 ---
 
 ## Project Structure
+```
 .
 ├── ablation/              # Ablation study scripts
 ├── baselines/             # Baseline model scripts
@@ -105,7 +106,7 @@ A complete end‑to‑end system for detecting fraudulent accounts in Ethereum D
 ├── .env.example           # Example environment variables
 ├── requirements.txt       # dependencies
 └── README.md              # This file
-
+```
 ---
 
 ## Data Preparation

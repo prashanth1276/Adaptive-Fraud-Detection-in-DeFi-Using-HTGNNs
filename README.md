@@ -36,8 +36,8 @@ A complete end‑to‑end system for detecting fraudulent accounts in Ethereum D
 
 ---
 
-## System Architecture
-![System Architecture](assets/architecture.png)
+## Architecture
+![Architecture](assets/architecture.png)
 *The interaction between the Streamlit UI, Neo4j Knowledge Graph, and the HTGNN inference engine.*
 
 ---

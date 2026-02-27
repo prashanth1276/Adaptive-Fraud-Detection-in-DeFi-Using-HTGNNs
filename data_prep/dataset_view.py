@@ -12,7 +12,7 @@ validation; it does not participate in model training or inference.
 import pandas as pd
 
 # Load the node feature CSV for schema and sample inspection
-df = pd.read_csv("graph_nodes.csv")
+df = pd.read_csv("DataSet/graph_nodes_labeled.csv")
 
 # Deprecated alternative implementation retained for historical reference.
 # df = pd.read_csv("DataSet/graph_edges.csv", low_memory=False)

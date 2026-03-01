@@ -211,24 +211,31 @@ with st.sidebar:
 
     st.divider()
     st.subheader("Model Performance")
-    st.metric("Validation AUPRC", "0.1950", delta="+0.067 from 8-feature model")
+    st.metric("Validation AUPRC", "0.1950", delta="+0.0667 from 8-feature model")
     st.metric("Optimal Threshold", f"{threshold:.4f}")
     st.caption("AUPRC is the primary metric for imbalanced fraud detection.")
 
 # Main panel: address input and risk analysis trigger
 st.subheader("Analyze an Ethereum Address")
 
-col_input, col_clear = st.columns([6, 1])
-with col_input:
-    search_addr = st.text_input(
-        "Enter wallet / contract address:", placeholder="0x..."
-    ).strip()
+search_addr = st.text_input(
+    "Enter address:", 
+    placeholder="0x...", 
+    key="addr_input",
+    autocomplete="new-password"
+).strip()
+
+col_analyze, col_clear = st.columns([3, 1])
+
+with col_analyze:
+    analyze_clicked = st.button("Analyze Risk Profile", use_container_width=True)
+
 with col_clear:
-    if st.button("Clear"):
+    if st.button("Clear", use_container_width=True):
         st.session_state.analyzed_node = None
         st.rerun()
 
-if st.button("Analyze Risk Profile"):
+if analyze_clicked:
     if not search_addr:
         st.warning("Please enter an address.")
     elif search_addr not in node_id_map:
@@ -448,9 +455,16 @@ if st.session_state.analyzed_node:
                     shutil.copy("best_model.pth", "results/best_model.pth")
 
                     # Step 6: Re-score the target node with the adapted model
+                    fresh_sub_g, _ = dgl.khop_in_subgraph(g, node_id, k=2)
+                    fresh_sub_g.graph_data = {
+                        "max_timestamp": g.graph_data.get("max_timestamp", 0),
+                        "current_time": current_time,
+                    }
+                    fresh_local_mask = fresh_sub_g.ndata[dgl.NID] == node_id
+                    fresh_local_id = fresh_local_mask.nonzero(as_tuple=True)[0].item()
                     with torch.no_grad():
-                        new_logits = model(sub_g)
-                        new_prob = torch.sigmoid(new_logits[local_id]).item()
+                        new_logits = model(fresh_sub_g)
+                        new_prob = torch.sigmoid(new_logits[fresh_local_id]).item()
 
                     improvement = new_prob - old_prob
                     st.success(

@@ -51,6 +51,7 @@ best_model.pth
 
 # txt files
 CleanCode.txt
+add_Test.txt
 
 # Cache of Ruff
 .ruff_cache

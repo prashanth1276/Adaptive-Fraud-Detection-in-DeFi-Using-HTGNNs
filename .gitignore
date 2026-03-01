@@ -12,7 +12,8 @@
 venv/
 __pycache__
 
-DataSet
+DataSet/*
+!DataSet/Dataset_with_updated_flags_labeled.csv
 
 
 # Logs

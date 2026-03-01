@@ -219,10 +219,7 @@ with st.sidebar:
 st.subheader("Analyze an Ethereum Address")
 
 search_addr = st.text_input(
-    "Enter address:", 
-    placeholder="0x...", 
-    key="addr_input",
-    autocomplete="new-password"
+    "Enter address:", placeholder="0x...", key="addr_input", autocomplete="new-password"
 ).strip()
 
 col_analyze, col_clear = st.columns([3, 1])

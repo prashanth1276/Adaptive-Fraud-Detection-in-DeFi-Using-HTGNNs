@@ -18,7 +18,7 @@ import pandas as pd
 df = pd.read_csv("DataSet/Ethereum_Fraud_Dataset.csv")
 
 # Load the previously generated node address list (output of nodes_edges_generation.py)
-node_df = pd.read_csv("graph_nodes.csv")
+node_df = pd.read_csv("DataSet/graph_nodes.csv")
 
 # Extract fraud flags from the sender column and normalize the join key name
 from_flags = df[["from_address", "flag"]].rename(columns={"from_address": "node"})
@@ -35,6 +35,6 @@ node_df = node_df.merge(node_flags, on="node", how="left")
 node_df["flag"] = node_df["flag"].fillna(0).astype(int)  # default to 0 for unlabeled
 
 # Persist the fraud-labeled node table for consumption by dgl_graph_construction.py
-node_df.to_csv("graph_nodes_labeled.csv", index=False)
+node_df.to_csv("DataSet/graph_nodes_labeled.csv", index=False)
 
 print("Fraud labels (flag) added to nodes and saved as 'graph_nodes_labeled.csv'")
